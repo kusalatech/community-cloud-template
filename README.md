@@ -59,8 +59,9 @@ Configure these in **Settings → Secrets and variables → Actions**:
 The service account should have at least:
 
 - Compute Instance Admin (v1) or equivalent (create/describe instances)
+- Compute Security Admin (create/describe firewall rules)
 - Service Account User (to SSH as the VM’s SA)
-- Or a custom role that allows `compute.instances.create`, `compute.instances.get`, and `compute.instances.use` (for SSH)
+- Or a custom role that allows `compute.instances.create`, `compute.instances.get`, `compute.instances.use` (for SSH), and `compute.firewalls.create`/`compute.firewalls.get`
 
 ## Workflows
 

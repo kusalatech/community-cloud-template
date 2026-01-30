@@ -14,7 +14,7 @@ on:
       - 'ansible/scripts/bootstrap-control-node.sh'
 
 env:
-  INSTANCE_NAME: ansible-control
+  INSTANCE_NAME: ansible-ctrl
   ZONE: us-central1-a
   MACHINE_TYPE: e2-micro
 

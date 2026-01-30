@@ -5,8 +5,9 @@ usage() {
 Usage: provision-github-sa.sh [OPTIONS]
 
 Create a GCP service account for GitHub Actions (Ansible control workflows),
-grant it Compute Instance Admin and Service Account User roles, create a JSON
-key, and set it as the GCP_SA_KEY repository secret using GitHub CLI.
+grant it Compute Instance Admin, Compute Security Admin, and Service Account
+User roles, create a JSON key, and set it as the GCP_SA_KEY repository secret
+using GitHub CLI.
 
 Requires:
   GCP_PROJECT_ID    GCP project ID (environment variable).
@@ -42,6 +43,10 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
   --member="serviceAccount:${SA_EMAIL}" \
   --role="roles/iam.serviceAccountUser"
 
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role="roles/compute.securityAdmin"
+
 # Create key to a temp file, push to GitHub secrets, then remove key
 KEY_FILE=$(mktemp -t gcp-sa-key.XXXXXX.json)
 trap 'rm -f "$KEY_FILE"' EXIT
@@ -51,5 +56,6 @@ gcloud iam service-accounts keys create "$KEY_FILE" \
   --iam-account="$SA_EMAIL"
 
 gh secret set GCP_SA_KEY < "$KEY_FILE"
+gh secret set GCP_PROJECT_ID -b "$PROJECT_ID"
 
 echo "GCP_SA_KEY has been set in this repository's secrets."
