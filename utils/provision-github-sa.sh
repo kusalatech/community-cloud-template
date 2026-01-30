@@ -51,5 +51,6 @@ gcloud iam service-accounts keys create "$KEY_FILE" \
   --iam-account="$SA_EMAIL"
 
 gh secret set GCP_SA_KEY < "$KEY_FILE"
+gh secret set GCP_PROJECT_ID -b "$PROJECT_ID"
 
 echo "GCP_SA_KEY has been set in this repository's secrets."
