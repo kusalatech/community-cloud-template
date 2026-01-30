@@ -43,7 +43,7 @@ jobs:
       - name: Run Ansible on control node via gcloud compute ssh
         env:
           REGION: ${{ secrets.GCP_REGION || 'us-central1' }}
-          INSTANCE: ${{ secrets.GCP_INSTANCE_NAME || 'ansible-control' }}
+          INSTANCE: ${{ secrets.GCP_INSTANCE_NAME || 'ansible-ctrl' }}
           PLAYBOOK: ${{ github.event.inputs.playbook || 'ansible/playbooks/site.yml' }}
         run: |
           gcloud compute ssh "$INSTANCE" \
