@@ -14,13 +14,11 @@ Community cloud automation for [Kusala Studio](https://kusala.studio), provision
    ```bash
    GCP_PROJECT_ID=your-project make bootstrap
    ```
-   This creates the GCP service account, a JSON key, and sets **GCP_SA_KEY** in this repository’s GitHub Actions secrets via `gh secret set`. Run `make help` for targets.
+   This creates the GCP service account, a JSON key, and sets **GCP_SA_KEY**/**GCP_PROJECT_ID** in this repository’s GitHub Actions secrets via `gh secret set`. Run `make help` for targets.
 
-2. **Add GCP_PROJECT_ID** in the repo: **Settings → Secrets and variables → Actions → New repository secret** → name `GCP_PROJECT_ID`, value your GCP project ID.
+2. **Provision the Ansible control node**: in GitHub, run **Actions → Provision Ansible control node → Run workflow** (or push to `main` after changing the provision workflow or bootstrap script).
 
-3. **Provision the Ansible control node**: in GitHub, run **Actions → Provision Ansible control node → Run workflow** (or push to `main` after changing the provision workflow or bootstrap script).
-
-4. **Run Ansible**: push changes under `ansible/`, or run **Actions → Run Ansible → Run workflow**.
+3. **Run Ansible**: push changes under `ansible/`, or run **Actions → Run Ansible → Run workflow**.
 
 ## Repository layout
 
@@ -53,14 +51,16 @@ Configure these in **Settings → Secrets and variables → Actions**:
 |------------------|-------------|
 | `GCP_PROJECT_ID` | GCP project ID |
 | `GCP_SA_KEY`     | JSON key for a service account that can create VMs and use `gcloud compute ssh` |
-| `GCP_ZONE`       | (Optional) Zone, e.g. `us-central1-a`. Default: `us-central1-a` |
+| `GCP_REGION`     | (Optional) Region, e.g. `us-central1`. Default: `us-central1` |
+| `GCP_ZONE`       | (Optional) Zone override, e.g. `us-central1-a`. If set, it wins over `GCP_REGION`. |
 | `GCP_INSTANCE_NAME` | (Optional) Control node VM name. Default: `ansible-control` |
 
 The service account should have at least:
 
 - Compute Instance Admin (v1) or equivalent (create/describe instances)
+- Compute Security Admin (create/describe firewall rules)
 - Service Account User (to SSH as the VM’s SA)
-- Or a custom role that allows `compute.instances.create`, `compute.instances.get`, and `compute.instances.use` (for SSH)
+- Or a custom role that allows `compute.instances.create`, `compute.instances.get`, `compute.instances.use` (for SSH), and `compute.firewalls.create`/`compute.firewalls.get`
 
 ## Workflows
 
@@ -93,9 +93,10 @@ After the control node exists:
 ```bash
 # From a machine with gcloud and access to the project
 export GCP_PROJECT_ID=your-project
-export ZONE=us-central1-a
+export REGION=us-central1
 export INSTANCE=ansible-control
 
+ZONE="$(gcloud compute zones list --filter="region:($REGION) AND status=UP" --format="value(name)" | head -n 1)"
 gcloud compute ssh "$INSTANCE" --zone="$ZONE" --project="$GCP_PROJECT_ID" \
   --command="cd /opt/community-cloud && git pull && ansible-playbook ansible/playbooks/site.yml"
 ```
