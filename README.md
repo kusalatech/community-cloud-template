@@ -14,13 +14,11 @@ Community cloud automation for [Kusala Studio](https://kusala.studio), provision
    ```bash
    GCP_PROJECT_ID=your-project make bootstrap
    ```
-   This creates the GCP service account, a JSON key, and sets **GCP_SA_KEY** in this repository’s GitHub Actions secrets via `gh secret set`. Run `make help` for targets.
+   This creates the GCP service account, a JSON key, and sets **GCP_SA_KEY**/**GCP_PROJECT_ID** in this repository’s GitHub Actions secrets via `gh secret set`. Run `make help` for targets.
 
-2. **Add GCP_PROJECT_ID** in the repo: **Settings → Secrets and variables → Actions → New repository secret** → name `GCP_PROJECT_ID`, value your GCP project ID.
+2. **Provision the Ansible control node**: in GitHub, run **Actions → Provision Ansible control node → Run workflow** (or push to `main` after changing the provision workflow or bootstrap script).
 
-3. **Provision the Ansible control node**: in GitHub, run **Actions → Provision Ansible control node → Run workflow** (or push to `main` after changing the provision workflow or bootstrap script).
-
-4. **Run Ansible**: push changes under `ansible/`, or run **Actions → Run Ansible → Run workflow**.
+3. **Run Ansible**: push changes under `ansible/`, or run **Actions → Run Ansible → Run workflow**.
 
 ## Repository layout
 
