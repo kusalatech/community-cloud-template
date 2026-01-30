@@ -53,7 +53,8 @@ Configure these in **Settings → Secrets and variables → Actions**:
 |------------------|-------------|
 | `GCP_PROJECT_ID` | GCP project ID |
 | `GCP_SA_KEY`     | JSON key for a service account that can create VMs and use `gcloud compute ssh` |
-| `GCP_ZONE`       | (Optional) Zone, e.g. `us-central1-a`. Default: `us-central1-a` |
+| `GCP_REGION`     | (Optional) Region, e.g. `us-central1`. Default: `us-central1` |
+| `GCP_ZONE`       | (Optional) Zone override, e.g. `us-central1-a`. If set, it wins over `GCP_REGION`. |
 | `GCP_INSTANCE_NAME` | (Optional) Control node VM name. Default: `ansible-control` |
 
 The service account should have at least:
@@ -94,9 +95,10 @@ After the control node exists:
 ```bash
 # From a machine with gcloud and access to the project
 export GCP_PROJECT_ID=your-project
-export ZONE=us-central1-a
+export REGION=us-central1
 export INSTANCE=ansible-control
 
+ZONE="$(gcloud compute zones list --filter="region:($REGION) AND status=UP" --format="value(name)" | head -n 1)"
 gcloud compute ssh "$INSTANCE" --zone="$ZONE" --project="$GCP_PROJECT_ID" \
   --command="cd /opt/community-cloud && git pull && ansible-playbook ansible/playbooks/site.yml"
 ```

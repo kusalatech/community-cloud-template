@@ -5,7 +5,7 @@
 # (no SSH keys stored in repo; IAM handles auth). Control node has ed25519 key
 # for Ansible to manage other hosts.
 #
-# Requires: GCP_PROJECT_ID, GCP_SA_KEY. Optionally: GCP_ZONE, GCP_INSTANCE_NAME
+# Requires: GCP_PROJECT_ID, GCP_SA_KEY. Optionally: GCP_REGION, GCP_ZONE, GCP_INSTANCE_NAME
 name: Run Ansible
 
 on:
@@ -42,10 +42,20 @@ jobs:
 
       - name: Run Ansible on control node via gcloud compute ssh
         env:
-          ZONE: ${{ secrets.GCP_ZONE || 'us-central1-a' }}
+          REGION: ${{ secrets.GCP_REGION || 'us-central1' }}
           INSTANCE: ${{ secrets.GCP_INSTANCE_NAME || 'ansible-control' }}
           PLAYBOOK: ${{ github.event.inputs.playbook || 'ansible/playbooks/site.yml' }}
         run: |
+          ZONE="${{ secrets.GCP_ZONE }}"
+          if [ -z "$ZONE" ]; then
+            ZONE="$(gcloud compute zones list \
+              --filter="region:($REGION) AND status=UP" \
+              --format="value(name)" | head -n 1)"
+          fi
+          if [ -z "$ZONE" ]; then
+            echo "No available zone found for region $REGION"
+            exit 1
+          fi
           gcloud compute ssh "$INSTANCE" \
             --zone="$ZONE" \
             --project="${{ secrets.GCP_PROJECT_ID }}" \

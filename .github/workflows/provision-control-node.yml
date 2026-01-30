@@ -2,7 +2,7 @@
 # Kusala Studio Community Cloud - AGPLv3
 #
 # Requires GitHub secrets: GCP_PROJECT_ID, GCP_SA_KEY (or use Workload Identity)
-# Optionally: GCP_ZONE (default us-central1-a), GCP_INSTANCE_NAME (default ansible-control)
+# Optionally: GCP_REGION (default us-central1), GCP_INSTANCE_NAME (default ansible-control)
 name: Provision Ansible control node
 
 on:
@@ -15,7 +15,7 @@ on:
 
 env:
   INSTANCE_NAME: ansible-ctrl
-  ZONE: us-central1-a
+  REGION: us-central1
   MACHINE_TYPE: e2-micro
 
 jobs:
@@ -51,7 +51,14 @@ jobs:
       - name: Create or reuse Ansible control VM
         id: vm
         run: |
-          ZONE="${{ secrets.GCP_ZONE || env.ZONE }}"
+          REGION="${{ secrets.GCP_REGION || env.REGION }}"
+          ZONE="$(gcloud compute zones list \
+            --filter="region:($REGION) AND status=UP" \
+            --format="value(name)" | head -n 1)"
+          if [ -z "$ZONE" ]; then
+            echo "No available zone found for region $REGION"
+            exit 1
+          fi
           if gcloud compute instances describe "${{ env.INSTANCE_NAME }}" --zone="$ZONE" --project="${{ secrets.GCP_PROJECT_ID }}" 2>/dev/null; then
             echo "instance_exists=true" >> "$GITHUB_OUTPUT"
             echo "Instance already exists."
