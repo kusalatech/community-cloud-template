@@ -1,0 +1,99 @@
+# Provision Ansible control node on GCP with ed25519 SSH key
+# Kusala Studio Community Cloud - AGPLv3
+#
+# Requires GitHub secrets: GCP_PROJECT_ID, GCP_SA_KEY (or use Workload Identity)
+# Optionally: GCP_ZONE (default us-central1-a), GCP_INSTANCE_NAME (default ansible-control)
+name: Provision Ansible control node
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/provision-control-node.yml'
+      - 'ansible/scripts/bootstrap-control-node.sh'
+
+env:
+  INSTANCE_NAME: ansible-control
+  ZONE: us-central1-a
+  MACHINE_TYPE: e2-micro
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Create firewall rule for SSH (if missing)
+        run: |
+          gcloud compute firewall-rules describe allow-ssh --project="${{ secrets.GCP_PROJECT_ID }}" 2>/dev/null || \
+          gcloud compute firewall-rules create allow-ssh \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --allow=tcp:22 \
+            --source-ranges=0.0.0.0/0 \
+            --description="Allow SSH" \
+            --direction=INGRESS
+
+      - name: Create or reuse Ansible control VM
+        id: vm
+        run: |
+          ZONE="${{ secrets.GCP_ZONE || env.ZONE }}"
+          if gcloud compute instances describe "${{ env.INSTANCE_NAME }}" --zone="$ZONE" --project="${{ secrets.GCP_PROJECT_ID }}" 2>/dev/null; then
+            echo "instance_exists=true" >> "$GITHUB_OUTPUT"
+            echo "Instance already exists."
+          else
+            echo "instance_exists=false" >> "$GITHUB_OUTPUT"
+            gcloud compute instances create "${{ env.INSTANCE_NAME }}" \
+              --project="${{ secrets.GCP_PROJECT_ID }}" \
+              --zone="$ZONE" \
+              --machine-type="${{ env.MACHINE_TYPE }}" \
+              --image-family=debian-12 \
+              --image-project=debian-cloud \
+              --boot-disk-size=10GB \
+              --tags=ansible-control
+          fi
+          echo "zone=$ZONE" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for SSH
+        run: |
+          ZONE="${{ steps.vm.outputs.zone }}"
+          for i in $(seq 1 30); do
+            if gcloud compute ssh "${{ env.INSTANCE_NAME }}" --zone="$ZONE" --project="${{ secrets.GCP_PROJECT_ID }}" --command="exit 0" 2>/dev/null; then
+              echo "SSH ready"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "SSH timeout"
+          exit 1
+
+      - name: Run bootstrap on control node
+        run: |
+          ZONE="${{ steps.vm.outputs.zone }}"
+          REPO_URL="${{ github.server_url }}/${{ github.repository }}.git"
+          gcloud compute ssh "${{ env.INSTANCE_NAME }}" \
+            --zone="$ZONE" \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --command="REPO_URL=\"$REPO_URL\" REPO_PATH=/opt/community-cloud /bin/bash -s" \
+            < ansible/scripts/bootstrap-control-node.sh
+
+      - name: Summary
+        run: |
+          echo "Ansible control node is ready."
+          echo "Zone: ${{ steps.vm.outputs.zone }}"
+          echo "Instance: ${{ env.INSTANCE_NAME }}"
+          echo "Run Ansible via: gcloud compute ssh ${{ env.INSTANCE_NAME }} --zone=${{ steps.vm.outputs.zone }} -- 'cd /opt/community-cloud && ansible-playbook ansible/playbooks/site.yml'"

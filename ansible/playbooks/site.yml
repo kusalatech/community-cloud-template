@@ -1,0 +1,22 @@
+---
+# Site playbook - Kusala Studio Community Cloud
+# AGPLv3 - https://www.gnu.org/licenses/agpl-3.0.html
+#
+# Run from control node:
+#   ansible-playbook playbooks/site.yml
+#
+- name: Community Cloud base setup
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Ensure Python is available for Ansible
+      ansible.builtin.raw: "python3 --version"
+      register: python_check
+      changed_when: false
+      failed_when: false
+
+    - name: Placeholder - add your plays here
+      ansible.builtin.debug:
+        msg: "Community Cloud for {{ organization | default('Kusala Studio') }}"
+      tags:
+        - always

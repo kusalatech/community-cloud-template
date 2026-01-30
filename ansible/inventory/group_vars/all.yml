@@ -1,0 +1,9 @@
+# Group variables for Kusala Studio Community Cloud
+# AGPLv3 - https://www.gnu.org/licenses/agpl-3.0.html
+---
+# Ansible control node uses ed25519 key (path set by bootstrap / env)
+ansible_ssh_private_key_file: "{{ lookup('env', 'ANSIBLE_SSH_PRIVATE_KEY_FILE') | default('~/.ssh/ansible_ed25519') }}"
+
+# Project metadata
+project_name: community-cloud
+organization: Kusala Studio
