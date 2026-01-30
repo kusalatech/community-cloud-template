@@ -46,16 +46,6 @@ jobs:
           INSTANCE: ${{ secrets.GCP_INSTANCE_NAME || 'ansible-control' }}
           PLAYBOOK: ${{ github.event.inputs.playbook || 'ansible/playbooks/site.yml' }}
         run: |
-          ZONE="${{ secrets.GCP_ZONE }}"
-          if [ -z "$ZONE" ]; then
-            ZONE="$(gcloud compute zones list \
-              --filter="region:($REGION) AND status=UP" \
-              --format="value(name)" | head -n 1)"
-          fi
-          if [ -z "$ZONE" ]; then
-            echo "No available zone found for region $REGION"
-            exit 1
-          fi
           gcloud compute ssh "$INSTANCE" \
             --project="${{ secrets.GCP_PROJECT_ID }}" \
             --command="cd /opt/community-cloud && git pull && ansible-playbook $PLAYBOOK"

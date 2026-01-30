@@ -49,37 +49,27 @@ jobs:
             --direction=INGRESS
 
       - name: Create or reuse Ansible control VM
-        id: vm
         run: |
           REGION="${{ secrets.GCP_REGION || env.REGION }}"
-          ZONE="$(gcloud compute zones list \
-            --filter="region:($REGION) AND status=UP" \
-            --format="value(name)" | head -n 1)"
-          if [ -z "$ZONE" ]; then
-            echo "No available zone found for region $REGION"
-            exit 1
-          fi
-          if gcloud compute instances describe "${{ env.INSTANCE_NAME }}" --zone="$ZONE" --project="${{ secrets.GCP_PROJECT_ID }}" 2>/dev/null; then
+          if gcloud compute instances describe "${{ env.INSTANCE_NAME }}" --project="${{ secrets.GCP_PROJECT_ID }}" 2>/dev/null; then
             echo "instance_exists=true" >> "$GITHUB_OUTPUT"
             echo "Instance already exists."
           else
             echo "instance_exists=false" >> "$GITHUB_OUTPUT"
             gcloud compute instances create "${{ env.INSTANCE_NAME }}" \
               --project="${{ secrets.GCP_PROJECT_ID }}" \
-              --zone="$ZONE" \
               --machine-type="${{ env.MACHINE_TYPE }}" \
               --image-family=debian-12 \
               --image-project=debian-cloud \
               --boot-disk-size=10GB \
               --tags=ansible-control
           fi
-          echo "zone=$ZONE" >> "$GITHUB_OUTPUT"
 
       - name: Wait for SSH
         run: |
           ZONE="${{ steps.vm.outputs.zone }}"
           for i in $(seq 1 30); do
-            if gcloud compute ssh "${{ env.INSTANCE_NAME }}" --zone="$ZONE" --project="${{ secrets.GCP_PROJECT_ID }}" --command="exit 0" 2>/dev/null; then
+            if gcloud compute ssh "${{ env.INSTANCE_NAME }}" --project="${{ secrets.GCP_PROJECT_ID }}" --command="exit 0" 2>/dev/null; then
               echo "SSH ready"
               exit 0
             fi
@@ -93,7 +83,6 @@ jobs:
           ZONE="${{ steps.vm.outputs.zone }}"
           REPO_URL="${{ github.server_url }}/${{ github.repository }}.git"
           gcloud compute ssh "${{ env.INSTANCE_NAME }}" \
-            --zone="$ZONE" \
             --project="${{ secrets.GCP_PROJECT_ID }}" \
             --command="REPO_URL=\"$REPO_URL\" REPO_PATH=/opt/community-cloud /bin/bash -s" \
             < ansible/scripts/bootstrap-control-node.sh
@@ -101,6 +90,5 @@ jobs:
       - name: Summary
         run: |
           echo "Ansible control node is ready."
-          echo "Zone: ${{ steps.vm.outputs.zone }}"
           echo "Instance: ${{ env.INSTANCE_NAME }}"
-          echo "Run Ansible via: gcloud compute ssh ${{ env.INSTANCE_NAME }} --zone=${{ steps.vm.outputs.zone }} -- 'cd /opt/community-cloud && ansible-playbook ansible/playbooks/site.yml'"
+          echo "Run Ansible via: gcloud compute ssh ${{ env.INSTANCE_NAME }} -- 'cd /opt/community-cloud && ansible-playbook ansible/playbooks/site.yml'"
